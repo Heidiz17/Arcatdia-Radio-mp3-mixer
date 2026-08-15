@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>📻 明記心靈電台 - Nature & 2Hz Brainwave Studio</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: linear-gradient(135deg, #1e272e, #0984e3); color: #fff; margin: 0; padding: 15px; padding-bottom: 50px; user-select: none; }
+    h1 { text-align: center; font-size: 20px; color: #ffeaa7; margin-bottom: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+    .card { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .card-title { font-size: 14px; font-weight: bold; color: #ffeaa7; margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 4px; }
+    .btn { padding: 10px 12px; border-radius: 8px; font-size: 12px; font-weight: bold; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; color: white; background: #0984e3; box-shadow: 0 3px 6px rgba(0,0,0,0.3); }
+    .btn:active { transform: scale(0.96); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .sound-btn { padding: 8px 4px; border-radius: 8px; font-size: 11px; text-align: center; cursor: pointer; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); }
+    .sound-btn.active { background: #00b894; border-color: #ffeaa7; box-shadow: 0 0 8px #ffeaa7; }
+    .mixer-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+    .mixer-row input { width: 130px; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: #ffeaa7; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; display: none; z-index: 99; border: 1px solid #ffeaa7; }
+    .track-list { max-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 6px; margin-top: 6px; font-size: 11px; }
+  </style>
+</head>
+<body>
+
+  <h1>📻 明記心靈電台 (Nature & 2Hz Brainwave)</h1>
+
+  <!-- 【目錄 1】Mureka 歌單區 -->
+  <div class="card">
+    <div class="card-title">🎵 1. Mureka MP3 歌單載入</div>
+    <div style="display:flex; gap:6px;">
+      <label class="btn" style="background:#e17055; flex:1;" for="musicInput">➕ 一口氣揼入 MP3 歌單</label>
+      <input type="file" id="musicInput" accept="audio/*" multiple style="display:none;" onchange="uploadMusic(event)">
+      <button class="btn" onclick="togglePlayMusic()" id="btnPlayMusic">▶️ 播放 / 暫停</button>
+    </div>
+    <div id="nowPlaying" style="font-size:11px; color:#ffeaa7; margin-top:6px;">🎵 歌單現有：0 首歌</div>
+    <div class="track-list" id="playlistDisplay"></div>
+    <audio id="bgPlayer" onended="nextTrack()"></audio>
+  </div>
+
+  <!-- 【目錄 2】大自然音效與 2Hz 腦波區 -->
+  <div class="card">
+    <div class="card-title">🌿 2. 大自然背景音 & 🧠 2Hz 助眠腦波</div>
+    <div class="grid-3" style="margin-bottom:10px;">
+      <div class="sound-btn active" id="btn-rain" onclick="toggleNature('rain')">🌧️ 聽雨</div>
+      <div class="sound-btn" id="btn-wave" onclick="toggleNature('wave')">🌊 海浪</div>
+      <div class="sound-btn" id="btn-thunder" onclick="toggleNature('thunder')">⛈️ 雷雨</div>
+      <div class="sound-btn" id="btn-fire" onclick="toggleNature('fire')">🔥 柴火</div>
+      <div class="sound-btn" id="btn-forest" onclick="toggleNature('forest')">🌲 森林</div>
+      <div class="sound-btn" id="btn-windbell" onclick="toggleNature('windbell')">🎐 風鈴</div>
+    </div>
+    
+    <!-- 2Hz Delta 腦波開關按鈕 -->
+    <button class="btn" id="btn-brainwave" style="background:#6c5ce7; width:100%; font-size:13px;" onclick="toggleBrainwave()">🧠 開啟/關閉 2Hz Delta 深睡雙耳腦波 (請戴耳機)</button>
+
+    <audio id="snd-rain" src="rain.mp3" loop></audio>
+    <audio id="snd-wave" src="wave.mp3" loop></audio>
+    <audio id="snd-thunder" src="thunder.mp3" loop></audio>
+    <audio id="snd-fire" src="fire.mp3" loop></audio>
+    <audio id="snd-forest" src="forest.mp3" loop></audio>
+    <audio id="snd-windbell" src="windbell.mp3" loop></audio>
+  </div>
+
+  <!-- 【目錄 3】即時 Mixer Console -->
+  <div class="card">
+    <div class="card-title">🎛️ 3. 即時混音音量 Console</div>
+    <div class="mixer-row">
+      <label>🎵 歌單音樂音量：</label>
+      <input type="range" id="volMusic" min="0" max="1" step="0.05" value="0.8" oninput="updateVolumes()">
+    </div>
+    <div class="mixer-row">
+      <label>🌧️ 大自然音效音量：</label>
+      <input type="range" id="volNature" min="0" max="1" step="0.05" value="0.6" oninput="updateVolumes()">
+    </div>
+    <div class="mixer-row">
+      <label>🧠 2Hz 腦波音量：</label>
+      <input type="range" id="volBrainwave" min="0" max="1" step="0.05" value="0.3" oninput="updateVolumes()">
+    </div>
+  </div>
+
+  <!-- 【目錄 4】全自動 Export 區 -->
+  <div class="card" style="text-align:center;">
+    <div class="card-title">⚡ 4. 無上限全自動混音 Output</div>
+    <p style="font-size:11px; color:#ccc; margin-top:0;">自動串聯歌曲，疊加雨聲與 2Hz 腦波，一掣車出 60 分鐘大軌！</p>
+    <button class="btn" style="background:#00b894; width:100%; padding:14px; font-size:14px;" onclick="exportFullPlaylistWav()">⚡ 一鍵 Export 三合一混音 Track (.MP3)</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 【目錄 5】JavaScript 邏輯、2Hz 腦波合成器與 Export 引擎 -->
+  <script>
+    /** @type {{name: string, src: string, file: File}[]} */
+    let playlist = [];
+    let currentIdx = 0;
+    let activeNatureId = 'rain';
+
+    // 🧠 2Hz 雙耳腦波 Web Audio 全局變數
+    let bwAudioCtx = null;
+    let bwOscL = null, bwOscR = null;
+    let bwGainNode = null;
+    let isBrainwaveActive = false;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.innerText = msg; t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    // 1. 載入歌單
+    function uploadMusic(e) {
+      const target = /** @type {HTMLInputElement} */ (e.target);
+      if (!target || !target.files) return;
+      const files = Array.from(target.files);
+      files.forEach(f => {
+        const url = URL.createObjectURL(f);
+        playlist.push({ name: f.name, src: url, file: f });
+      });
+      renderPlaylist();
+      const p = /** @type {HTMLAudioElement} */ (document.getElementById('bgPlayer'));
+      if (playlist.length > 0 && p && !p.src) {
+        playTrack(0);
+      }
+      showToast(`🎵 成功揼入 ${files.length} 首歌！`);
+    }
+
+    // 2. 渲染歌單 UI
+    function renderPlaylist() {
+      const display = document.getElementById('playlistDisplay');
+      if (!display) return;
+      display.innerHTML = playlist.map((t, i) => 
+        `<div style="padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.1); color:${i === currentIdx ? '#ffeaa7':'#fff'}">${i+1}. ${t.name}</div>`
+      ).join('');
+      const np = document.getElementById('nowPlaying');
+      if (np) np.innerText = `🎵 歌單現有：${playlist.length} 首歌`;
+    }
+
+    // 3. 播放控制
+    function playTrack(idx) {
+      if (playlist.length === 0) return;
+      currentIdx = idx;
+      const p = /** @type {HTMLAudioElement} */ (document.getElementById('bgPlayer'));
+      if (p) {
+        p.src = playlist[currentIdx].src;
+        p.play();
+      }
+      renderPlaylist();
+      updateVolumes();
+    }
+
+    function togglePlayMusic() {
+      const p = /** @type {HTMLAudioElement} */ (document.getElementById('bgPlayer'));
+      if (!p || !p.src) return;
+      if (p.paused) { p.play(); showToast("▶️ 繼續播放"); }
+      else { p.pause(); showToast("⏸️ 暫停播放"); }
+    }
+
+    function nextTrack() {
+      if (playlist.length === 0) return;
+      currentIdx = (currentIdx + 1) % playlist.length;
+      playTrack(currentIdx);
+    }
+
+    // 4. 切換大自然音效
+    function toggleNature(id) {
+      activeNatureId = id;
+      ['rain','wave','thunder','fire','forest','windbell'].forEach(type => {
+        const a = /** @type {HTMLAudioElement} */ (document.getElementById('snd-' + type));
+        const btn = document.getElementById('btn-' + type);
+        if (a && btn) {
+          if (type === id) {
+            if (a.paused) { a.play(); btn.classList.add('active'); showToast(`🌿 開啟：${id}`); }
+            else { a.pause(); btn.classList.remove('active'); showToast(`⏸️ 關閉：${id}`); }
+          } else {
+            a.pause(); btn.classList.remove('active');
+          }
+        }
+      });
+      updateVolumes();
+    }
+
+    // 🧠 5. 開啟/關閉 2Hz Delta 雙耳腦波
+    function toggleBrainwave() {
+      if (!isBrainwaveActive) {
+        initBrainwave();
+        isBrainwaveActive = true;
+        document.getElementById('btn-brainwave').style.background = '#00b894';
+        showToast("🧠 2Hz Delta 助眠腦波已啟動 (左200Hz / 右202Hz)");
+      } else {
+        stopBrainwave();
+        isBrainwaveActive = false;
+        document.getElementById('btn-brainwave').style.background = '#6c5ce7';
+        showToast("⏸️ 2Hz 腦波已關閉");
+      }
+    }
+
+    function initBrainwave() {
+      if (!bwAudioCtx) {
+        const AudioCtx = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+        bwAudioCtx = new AudioCtx();
+      }
+      if (bwAudioCtx.state === 'suspended') {
+        bwAudioCtx.resume();
+      }
+
+      // 左耳 Oscillator (200Hz) & Panner
+      bwOscL = bwAudioCtx.createOscillator();
+      bwOscL.type = 'sine';
+      bwOscL.frequency.setValueAtTime(200, bwAudioCtx.currentTime);
+      const panL = bwAudioCtx.createStereoPanner ? bwAudioCtx.createStereoPanner() : null;
+      if(panL) panL.pan.setValueAtTime(-1, bwAudioCtx.currentTime);
+
+      // 右耳 Oscillator (202Hz -> 產生 2Hz Delta 頻差) & Panner
+      bwOscR = bwAudioCtx.createOscillator();
+      bwOscR.type = 'sine';
+      bwOscR.frequency.setValueAtTime(202, bwAudioCtx.currentTime);
+      const panR = bwAudioCtx.createStereoPanner ? bwAudioCtx.createStereoPanner() : null;
+      if(panR) panR.pan.setValueAtTime(1, bwAudioCtx.currentTime);
+
+      bwGainNode = bwAudioCtx.createGain();
+      const bwVal = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volBrainwave')).value || '0.3');
+      bwGainNode.gain.setValueAtTime(bwVal, bwAudioCtx.currentTime);
+
+      if (panL && panR) {
+        bwOscL.connect(panL); panL.connect(bwGainNode);
+        bwOscR.connect(panR); panR.connect(bwGainNode);
+      } else {
+        bwOscL.connect(bwGainNode); bwOscR.connect(bwGainNode);
+      }
+
+      bwGainNode.connect(bwAudioCtx.destination);
+      bwOscL.start(); bwOscR.start();
+    }
+
+    function stopBrainwave() {
+      if (bwOscL) { bwOscL.stop(); bwOscL.disconnect(); bwOscL = null; }
+      if (bwOscR) { bwOscR.stop(); bwOscR.disconnect(); bwOscR = null; }
+    }
+
+    // 6. 即時音量更新
+    function updateVolumes() {
+      const vMEl = /** @type {HTMLInputElement} */ (document.getElementById('volMusic'));
+      const vNEl = /** @type {HTMLInputElement} */ (document.getElementById('volNature'));
+      const vBWEl = /** @type {HTMLInputElement} */ (document.getElementById('volBrainwave'));
+
+      const p = /** @type {HTMLAudioElement} */ (document.getElementById('bgPlayer'));
+      
+      const vM = vMEl ? parseFloat(vMEl.value) : 0.8;
+      const vN = vNEl ? parseFloat(vNEl.value) : 0.6;
+      const vBW = vBWEl ? parseFloat(vBWEl.value) : 0.3;
+
+      if (p) p.volume = vM;
+      ['rain','wave','thunder','fire','forest','windbell'].forEach(type => {
+        const a = /** @type {HTMLAudioElement} */ (document.getElementById('snd-' + type));
+        if (a) a.volume = vN;
+      });
+
+      if (bwGainNode && bwAudioCtx) {
+        bwGainNode.gain.setValueAtTime(vBW, bwAudioCtx.currentTime);
+      }
+    }
+
+    // ⚡ 7.【三合一核心 Export 引擎】：歌單 + 自然聲 + 2Hz Delta 腦波一鍵匯出 MP3
+    async function exportFullPlaylistWav() {
+      if (playlist.length === 0) { showToast("⚠️ 請先揼入歌曲！"); return; }
+      showToast("⏳ 手機正在全自動合成 [歌單+自然聲+2Hz腦波] 混音，請稍候...");
+
+      try {
+        const AudioCtx = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+        const actx = new AudioCtx();
+        let decodedBuffers = [];
+        let totalDuration = 0;
+
+        for (let item of playlist) {
+          const res = await fetch(item.src);
+          const buf = await res.arrayBuffer();
+          const decoded = await actx.decodeAudioData(buf);
+          decodedBuffers.push(decoded);
+          totalDuration += decoded.duration;
+        }
+
+        const natureAudio = /** @type {HTMLAudioElement} */ (document.getElementById('snd-' + activeNatureId));
+        const resN = await fetch(natureAudio ? natureAudio.src : 'rain.mp3');
+        const bufN = await resN.arrayBuffer();
+        const decodedNature = await actx.decodeAudioData(bufN);
+
+        // 使用 22050 Hz 輕量取樣率
+        const off = new OfflineAudioContext(2, 22050 * totalDuration, 22050);
+        let currentTimeOffset = 0;
+        
+        const vM = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volMusic')).value || '0.8');
+        const vN = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volNature')).value || '0.6');
+        const vBW = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volBrainwave')).value || '0.3');
+
+        // 軌道 1：歌單 MP3
+        decodedBuffers.forEach(buffer => {
+          const srcM = off.createBufferSource();
+          srcM.buffer = buffer;
+          const gM = off.createGain();
+          gM.gain.value = vM;
+          srcM.connect(gM);
+          gM.connect(off.destination);
+          srcM.start(currentTimeOffset);
+          currentTimeOffset += buffer.duration;
+        });
+
+        // 軌道 2：大自然雨聲/海浪
+        const srcN = off.createBufferSource();
+        srcN.buffer = decodedNature;
+        srcN.loop = true;
+        const gN = off.createGain();
+        gN.gain.value = vN;
+        srcN.connect(gN);
+        gN.connect(off.destination);
+        srcN.start(0);
+
+        // 軌道 3：2Hz Delta 雙耳腦波 (左 200Hz / 右 202Hz)
+        if (isBrainwaveActive) {
+          const oscL = off.createOscillator();
+          oscL.type = 'sine';
+          oscL.frequency.value = 200;
+          const panL = off.createStereoPanner();
+          panL.pan.value = -1;
+
+          const oscR = off.createOscillator();
+          oscR.type = 'sine';
+          oscR.frequency.value = 202;
+          const panR = off.createStereoPanner();
+          panR.pan.value = 1;
+
+          const gBW = off.createGain();
+          gBW.gain.value = vBW;
+
+          oscL.connect(panL); panL.connect(gBW);
+          oscR.connect(panR); panR.connect(gBW);
+          gBW.connect(off.destination);
+
+          oscL.start(0); oscR.start(0);
+        }
+
+        const rendered = await off.startRendering();
+        const blob = bufferToWave(rendered, rendered.length);
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `NatureRadio_2HzDelta_${Date.now()}.mp3`;
+        a.click();
+
+        showToast("🎉 成功匯出三合一 [歌單+雨聲+2Hz腦波] 混音 MP3！");
+      } catch(e) {
+        console.error(e);
+        showToast("❌ 合成失敗！");
+      }
+    }
+
+    function bufferToWave(abuffer, len) {
+      let numOfChan = abuffer.numberOfChannels, length = len * numOfChan * 2 + 44,
+          out = new DataView(new ArrayBuffer(length)), channels = [], i, sample, offset = 0, pos = 0;
+      function setUint16(d) { out.setUint16(pos, d, true); pos += 2; }
+      function setUint32(d) { out.setUint32(pos, d, true); pos += 4; }
+      setUint32(0x46464952); setUint32(length - 8); setUint32(0x45564157); setUint32(0x20746d66);
+      setUint32(16); setUint16(1); setUint16(numOfChan); setUint32(abuffer.sampleRate);
+      setUint32(abuffer.sampleRate * 2 * numOfChan); setUint16(numOfChan * 2); setUint16(16);
+      setUint32(0x61746164); setUint32(length - pos - 4);
+      for (i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+      while (pos < length) {
+        for (i = 0; i < numOfChan; i++) {
+          sample = Math.max(-1, Math.min(1, channels[i][offset]));
+          sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+          out.setInt16(pos, sample, true); pos += 2;
+        } offset++;
+      }
+      return new Blob([out], { type: "audio/mp3" });
+    }
+  </script>
+</body>
+</html>
