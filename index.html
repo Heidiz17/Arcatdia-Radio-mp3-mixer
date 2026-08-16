@@ -292,16 +292,44 @@
         const vN = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volNature')).value || '0.6');
         const vBW = parseFloat(/** @type {HTMLInputElement} */ (document.getElementById('volBrainwave')).value || '0.3');
 
-        // 軌道 1：歌單 MP3
-        decodedBuffers.forEach(buffer => {
+        // 軌道 1：歌單 MP3 (支援 5 秒自然 Crossfade 淡入淡出)
+        const crossfadeTime = 5;
+
+        decodedBuffers.forEach((buffer, index) => {
           const srcM = off.createBufferSource();
           srcM.buffer = buffer;
           const gM = off.createGain();
-          gM.gain.value = vM;
+          
+          const startT = currentTimeOffset;
+          const duration = buffer.duration;
+          const endT = startT + duration;
+
+          // 1. 淡入 (Fade-in)
+          if (index === 0) {
+            gM.gain.setValueAtTime(vM, startT);
+          } else {
+            gM.gain.setValueAtTime(0, startT);
+            gM.gain.linearRampToValueAtTime(vM, startT + crossfadeTime);
+          }
+
+          // 2. 淡出 (Fade-out)
+          if (index === decodedBuffers.length - 1) {
+            gM.gain.setValueAtTime(vM, endT);
+          } else {
+            gM.gain.setValueAtTime(vM, endT - crossfadeTime);
+            gM.gain.linearRampToValueAtTime(0, endT);
+          }
+
           srcM.connect(gM);
           gM.connect(off.destination);
-          srcM.start(currentTimeOffset);
-          currentTimeOffset += buffer.duration;
+          srcM.start(startT);
+
+          // 3. 時間推進 (扣除 5 秒重疊)
+          if (index < decodedBuffers.length - 1) {
+            currentTimeOffset += (duration - crossfadeTime);
+          } else {
+            currentTimeOffset += duration;
+          }
         });
 
         // 軌道 2：大自然雨聲/海浪
